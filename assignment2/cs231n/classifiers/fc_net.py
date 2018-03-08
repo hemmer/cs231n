@@ -233,12 +233,11 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
 
-        data_in, caches, drop_masks = X, {}, {}
+        data_in, caches = X, {}
         for i in range(self.num_layers):
             id_s = str(i + 1)
             W, b = self.params['W' + id_s], self.params['b' + id_s]
 
-            #print(data_in.shape, W.shape, b.shape)
             if i == self.num_layers - 1:
                 out, cache = affine_forward(data_in, W, b)
             else:
@@ -247,7 +246,6 @@ class FullyConnectedNet(object):
             #if self.use_dropout:
             ##   out, dropout_cache = dropout_forward(out, self.dropout_param)
 
-            #print("###", id_s, len(cache))
             data_in = out
             caches['cache' + id_s] = cache
 
@@ -278,7 +276,6 @@ class FullyConnectedNet(object):
 
         loss, dx = softmax_loss(scores, y)
 
- 
         for i in range(self.num_layers, 0, -1):
             id_s = str(i)
             cache = caches['cache' + id_s]
@@ -297,7 +294,7 @@ class FullyConnectedNet(object):
 
             # regularisation terms (also contribute to grads!)
             if self.reg:
-                loss += 0.5 * self.reg * np.sum(self.params['W' + id_s]**2) 
+                loss += 0.5 * self.reg * np.sum(self.params['W' + id_s]**2)
                 grads['W' + id_s] += self.reg * self.params['W' + id_s]
         ############################################################################
         #                             END OF YOUR CODE                             #
