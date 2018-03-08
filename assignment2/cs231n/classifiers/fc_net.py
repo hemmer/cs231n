@@ -158,7 +158,7 @@ class FullyConnectedNet(object):
         self.params = {}
 
         ############################################################################
-        # TODO: Initialize the parameters of the network, storing all values in    #
+        # Initialize the parameters of the network, storing all values in          #
         # the self.params dictionary. Store weights and biases for the first layer #
         # in W1 and b1; for the second layer use W2 and b2, etc. Weights should be #
         # initialized from a normal distribution with standard deviation equal to  #
@@ -169,10 +169,16 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift      #
         # parameters should be initialized to zero.                                #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+
+        full_sizes = [input_dim] + hidden_dims + [num_classes]
+        for i in range(1, len(full_sizes)):
+            dims = (full_sizes[i - 1], full_sizes[i])
+
+            self.params['W' + str(i)] = np.random.normal(0, weight_scale, size=dims)
+            self.params['b' + str(i)] = np.zeros(full_sizes[i])
+
+            self.params['gamma' + str(i)] = np.ones(full_sizes[i])
+            self.params['beta' + str(i)] = np.zeros(full_sizes[i])
 
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
@@ -226,7 +232,27 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+
+        data_in, caches, drop_masks = X, {}, {}
+        for i in range(self.num_layers):
+            id_s = str(i + 1)
+            W, b = self.params['W' + id_s], self.params['b' + id_s]
+
+            #print(data_in.shape, W.shape, b.shape)
+            if i == self.num_layers - 1:
+                out, cache = affine_forward(data_in, W, b)
+            else:
+                out, cache = affine_relu_forward(data_in, W, b)
+
+            #if self.use_dropout:
+            ##   out, dropout_cache = dropout_forward(out, self.dropout_param)
+
+            #print("###", id_s, len(cache))
+            data_in = out
+            caches['cache' + id_s] = cache
+
+        scores = np.copy(out)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -249,7 +275,30 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+
+        loss, dx = softmax_loss(scores, y)
+
+ 
+        for i in range(self.num_layers, 0, -1):
+            id_s = str(i)
+            cache = caches['cache' + id_s]
+
+            # the last layer is special: doesn't automatically have ReLU applied
+            if i == self.num_layers:
+                dx, dw, db = affine_backward(dx, cache)
+            else: 
+                dx, dw, db = affine_relu_backward(dx, cache)
+
+            grads['W' + id_s], grads['b' + id_s] = dw, db
+
+            # TODO: 
+            grads['gamma' + id_s] = np.zeros(self.params['gamma' + id_s].shape)
+            grads['beta' + id_s] = np.zeros(self.params['beta' + id_s].shape)
+
+            # regularisation terms (also contribute to grads!)
+            if self.reg:
+                loss += 0.5 * self.reg * np.sum(self.params['W' + id_s]**2) 
+                grads['W' + id_s] += self.reg * self.params['W' + id_s]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
