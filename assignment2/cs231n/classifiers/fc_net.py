@@ -243,8 +243,9 @@ class FullyConnectedNet(object):
             else:
                 out, cache = affine_relu_forward(data_in, W, b)
 
-            #if self.use_dropout:
-            ##   out, dropout_cache = dropout_forward(out, self.dropout_param)
+            if self.use_dropout:
+                out, dropout_cache = dropout_forward(out, self.dropout_param)
+                caches['dp' + id_s] = dropout_cache
 
             data_in = out
             caches['cache' + id_s] = cache
@@ -278,8 +279,12 @@ class FullyConnectedNet(object):
 
         for i in range(self.num_layers, 0, -1):
             id_s = str(i)
-            cache = caches['cache' + id_s]
 
+            # reverse order 
+            if self.use_dropout:
+                dx = dropout_backward(dx, caches['dp' + id_s])
+
+            cache = caches['cache' + id_s]
             # the last layer is special: doesn't automatically have ReLU applied
             if i == self.num_layers:
                 dx, dw, db = affine_backward(dx, cache)
