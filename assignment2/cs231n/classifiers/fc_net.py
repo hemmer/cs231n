@@ -177,8 +177,9 @@ class FullyConnectedNet(object):
             self.params['W' + str(i)] = np.random.normal(0, weight_scale, size=dims)
             self.params['b' + str(i)] = np.zeros(full_sizes[i])
 
-            self.params['gamma' + str(i)] = np.ones(full_sizes[i])
-            self.params['beta' + str(i)] = np.zeros(full_sizes[i])
+            if self.use_batchnorm and i < len(full_sizes) - 1:
+                self.params['gamma' + str(i)] = np.ones(full_sizes[i])
+                self.params['beta' + str(i)] = np.zeros(full_sizes[i])
 
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
@@ -233,24 +234,27 @@ class FullyConnectedNet(object):
         # layer, etc.                                                              #
         ############################################################################
 
-        data_in, caches = X, {}
+        data, caches = X, {}
         for i in range(self.num_layers):
             id_s = str(i + 1)
             W, b = self.params['W' + id_s], self.params['b' + id_s]
 
-            if i == self.num_layers - 1:
-                out, cache = affine_forward(data_in, W, b)
-            else:
-                out, cache = affine_relu_forward(data_in, W, b)
+            data, caches['affine' + id_s] = affine_forward(data, W, b)
+
+            # if not the last layer, do ReLU / batchnorm
+            if i != self.num_layers - 1:
+                data, caches['relu' + id_s] = relu_forward(data)
+
+                if self.use_batchnorm:
+                    beta = self.params['beta' + id_s]
+                    gamma = self.params['gamma' + id_s]
+                    data, caches['bn' + id_s] = batchnorm_forward(data, gamma, beta,
+                                                                  self.bn_params[i])
 
             if self.use_dropout:
-                out, dropout_cache = dropout_forward(out, self.dropout_param)
-                caches['dp' + id_s] = dropout_cache
+                out, caches['do' + id_s] = dropout_forward(out, self.dropout_param)
 
-            data_in = out
-            caches['cache' + id_s] = cache
-
-        scores = np.copy(out)
+        scores = np.copy(data)
 
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -277,25 +281,26 @@ class FullyConnectedNet(object):
 
         loss, dx = softmax_loss(scores, y)
 
+        # go through the network in reverse order, and reverse operation order
         for i in range(self.num_layers, 0, -1):
             id_s = str(i)
 
-            # reverse order 
             if self.use_dropout:
-                dx = dropout_backward(dx, caches['dp' + id_s])
+                dx = dropout_backward(dx, caches['do' + id_s])
 
-            cache = caches['cache' + id_s]
-            # the last layer is special: doesn't automatically have ReLU applied
-            if i == self.num_layers:
-                dx, dw, db = affine_backward(dx, cache)
-            else: 
-                dx, dw, db = affine_relu_backward(dx, cache)
+            # the last layer is special: doesn't automatically have ReLU/BN applied
+            if i != self.num_layers:
 
+                if self.use_batchnorm:
+                    dx, dgamma, dbeta = batchnorm_backward(dx, caches['bn' + id_s])
+                    grads['beta' + id_s], grads['gamma' + id_s] = dbeta, dgamma
+
+                # ReLU is everywhere except last layer
+                dx = relu_backward(dx, caches['relu' + id_s])
+                
+            # standard affine back pass
+            dx, dw, db = affine_backward(dx, caches['affine' + id_s])
             grads['W' + id_s], grads['b' + id_s] = dw, db
-
-            # TODO: 
-            grads['gamma' + id_s] = np.zeros(self.params['gamma' + id_s].shape)
-            grads['beta' + id_s] = np.zeros(self.params['beta' + id_s].shape)
 
             # regularisation terms (also contribute to grads!)
             if self.reg:

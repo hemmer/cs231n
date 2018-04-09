@@ -181,7 +181,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
         cache['xhat'], cache['x'] = xhat, x
         cache['mu'], cache['var'] = sample_mean, sample_var
-        cache['gamma'], cache['eps'] = gamma, beta, eps
+        cache['gamma'], cache['eps'] = gamma, eps
         cache['m'] = N
 
         #######################################################################
@@ -236,10 +236,12 @@ def batchnorm_backward(dout, cache):
     x, xhat = cache['x'], cache['xhat']
     m = cache['m']
 
+    # x sub mean
     xc = x - mu
 
+    # intermediate gradients
     dxhat = dout * cache['gamma']
-    dsig = np.sum(dxhat * xc, axis=0) * -0.5 * np.power(sig + eps, -3.0/2.0)
+    dsig = np.sum(dxhat * xc, axis=0) * -0.5 * np.power(sig + eps, -3.0 / 2.0)
     dmu = np.sum(dxhat, axis=0) * -1.0 / np.sqrt(sig + eps)
     dmu += dsig * -2 * np.sum(xc, axis=0) / m
 
