@@ -250,9 +250,8 @@ class FullyConnectedNet(object):
                     gamma = self.params['gamma' + id_s]
                     data, caches['bn' + id_s] = batchnorm_forward(data, gamma, beta,
                                                                   self.bn_params[i])
-
-            if self.use_dropout:
-                out, caches['do' + id_s] = dropout_forward(out, self.dropout_param)
+                if self.use_dropout:
+                    data, caches['do' + id_s] = dropout_forward(data, self.dropout_param)
 
         scores = np.copy(data)
 
@@ -285,11 +284,11 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers, 0, -1):
             id_s = str(i)
 
-            if self.use_dropout:
-                dx = dropout_backward(dx, caches['do' + id_s])
-
             # the last layer is special: doesn't automatically have ReLU/BN applied
             if i != self.num_layers:
+
+                if self.use_dropout:
+                    dx = dropout_backward(dx, caches['do' + id_s])
 
                 if self.use_batchnorm:
                     dx, dgamma, dbeta = batchnorm_backward(dx, caches['bn' + id_s])
@@ -297,7 +296,7 @@ class FullyConnectedNet(object):
 
                 # ReLU is everywhere except last layer
                 dx = relu_backward(dx, caches['relu' + id_s])
-                
+
             # standard affine back pass
             dx, dw, db = affine_backward(dx, caches['affine' + id_s])
             grads['W' + id_s], grads['b' + id_s] = dw, db
